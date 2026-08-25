@@ -1,0 +1,860 @@
+blueprint:
+  name: TV Control and Blocking System
+  description: >
+    A comprehensive TV control system that blocks content based on schedules,
+    provides YouTube-specific blocking, and sends notifications with control actions.
+    Supports dual media player setups (e.g., built-in Chromecast + Android TV).
+    Includes exception for Kansas City Chiefs and Kansas City Royals content.
+    Always blocks YouTube content containing "bartolozzi" (case-insensitive) in media_artist or media_title.
+  domain: automation
+  input:
+    tv_name:
+      name: TV Name
+      description: Display name for the TV (used in notifications and automation name)
+      default: "Kitchen TV"
+      selector:
+        text:
+    
+    primary_media_player:
+      name: Primary Media Player
+      description: Main media player entity (e.g., Chromecast built into TV)
+      default: media_player.kitchen_tv
+      selector:
+        entity:
+          domain: media_player
+    
+    secondary_media_player:
+      name: Secondary Media Player
+      description: Secondary media player entity (e.g., Android TV interface)
+      default: media_player.kitchen_tv_2
+      selector:
+        entity:
+          domain: media_player
+    
+    youtube_block_boolean:
+      name: YouTube Block Input Boolean
+      description: Input boolean to control YouTube blocking
+      default: input_boolean.kitchen_tv_youtube_block
+      selector:
+        entity:
+          domain: input_boolean
+    
+    general_block_boolean:
+      name: General Block Input Boolean
+      description: Input boolean to control general TV blocking
+      default: input_boolean.kitchen_tv_block
+      selector:
+        entity:
+          domain: input_boolean
+    
+    notification_enable_boolean:
+      name: Notification Enable Input Boolean
+      description: Input boolean to enable playing notifications when YouTube block is disabled
+      default: input_boolean.kitchen_tv_notification_enable
+      selector:
+        entity:
+          domain: input_boolean
+    
+    school_in_session_boolean:
+      name: School In Session Input Boolean
+      description: Input boolean indicating if school is in session
+      default: input_boolean.school_in_session
+      selector:
+        entity:
+          domain: input_boolean
+    
+    evening_schedule:
+      name: Evening Block Schedule
+      description: Schedule entity for evening blocking
+      default: schedule.tv_evening_block
+      selector:
+        entity:
+          domain: schedule
+    
+    sunday_schedule:
+      name: Sunday Block Schedule
+      description: Schedule entity for Sunday blocking
+      default: schedule.tv_sunday_block
+      selector:
+        entity:
+          domain: schedule
+    
+    morning_schedule:
+      name: Morning Block Schedule
+      description: Schedule entity for morning blocking (school days)
+      default: schedule.tv_morning_block
+      selector:
+        entity:
+          domain: schedule
+    
+    afternoon_schedule:
+      name: Afternoon Block Schedule
+      description: Schedule entity for afternoon blocking (school days)
+      default: schedule.tv_afternoon_block
+      selector:
+        entity:
+          domain: schedule
+    
+    youtube_block_auto_enable_duration:
+      name: YouTube Block Auto-Enable Duration
+      description: Duration after which YouTube block automatically re-enables when disabled
+      default:
+        hours: 1
+        minutes: 30
+        seconds: 0
+      selector:
+        duration:
+    
+    general_block_auto_disable_duration:
+      name: General Block Auto-Disable Duration
+      description: Duration after which general block automatically disables
+      default:
+        hours: 6
+        minutes: 0
+        seconds: 0
+      selector:
+        duration:
+    
+    youtube_block_media_path:
+      name: YouTube Block Media Path
+      description: Path to YouTube block video
+      default: "/local/media/rickroll.mp4"
+      selector:
+        text:
+    
+    morning_media_path:
+      name: Morning Block Media Path
+      description: Path to morning block video
+      default: "/local/media/morning.mp4"
+      selector:
+        text:
+    
+    afternoon_media_path:
+      name: Afternoon Block Media Path
+      description: Path to afternoon block video
+      default: "/local/media/afternoon.mp4"
+      selector:
+        text:
+    
+    default_block_media_path:
+      name: Default Block Media Path
+      description: Path to default block video
+      default: "/local/media/ahahah.mp4"
+      selector:
+        text:
+
+alias: !input tv_name
+description: ""
+triggers:
+  - entity_id: !input primary_media_player
+    to: playing
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 10
+    id: playing
+    trigger: state
+  - entity_id: !input secondary_media_player
+    attribute: app_id
+    id: playing 2
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 30
+    trigger: state
+  - entity_id: !input secondary_media_player
+    attribute: app_id
+    to: com.google.android.youtube.tv
+    id: youtube 2
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 30
+    trigger: state
+  - entity_id: !input primary_media_player
+    from: playing
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 10
+    id: not playing
+    trigger: state
+  - id: youtube block enable
+    entity_id: !input youtube_block_boolean
+    to: "off"
+    for: !input youtube_block_auto_enable_duration
+    trigger: state
+  - event_type: mobile_app_notification_action
+    id: youtube block enable
+    event_data:
+      action: "{{ tv_tag }}_youtube_block"
+    trigger: event
+  - event_type: mobile_app_notification_action
+    id: youtube block disable
+    event_data:
+      action: "{{ tv_tag }}_youtube_allow"
+    trigger: event
+  - event_type: mobile_app_notification_action
+    id: notification disable
+    event_data:
+      action: "{{ tv_tag }}_notification_disable"
+    trigger: event
+  - id: youtube block enabled
+    entity_id: !input youtube_block_boolean
+    to: "on"
+    trigger: state
+  - id: youtube block enabled 2
+    entity_id: !input youtube_block_boolean
+    to: "on"
+    trigger: state
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 30
+  - id: youtube block disabled
+    entity_id: !input youtube_block_boolean
+    to: "off"
+    trigger: state
+  - event_type: mobile_app_notification_action
+    id: block enable
+    event_data:
+      action: "{{ tv_tag }}_block"
+    trigger: event
+  - event_type: mobile_app_notification_action
+    id: block disable
+    event_data:
+      action: "{{ tv_tag }}_allow"
+    trigger: event
+  - id: block disable
+    entity_id: !input general_block_boolean
+    to: "on"
+    for: !input general_block_auto_disable_duration
+    trigger: state
+  - id: block enabled
+    entity_id: !input general_block_boolean
+    to: "on"
+    trigger: state
+  - id: block enabled 2
+    entity_id: !input general_block_boolean
+    to: "on"
+    trigger: state
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 30
+  - id: block disabled
+    entity_id: !input general_block_boolean
+    to: "off"
+    trigger: state
+  - entity_id:
+      - !input evening_schedule
+      - !input sunday_schedule
+    to: "on"
+    id: block enable
+    trigger: state
+  - entity_id:
+      - !input evening_schedule
+      - !input sunday_schedule
+    to: "off"
+    id: block disable
+    trigger: state
+  - entity_id:
+      - !input morning_schedule
+      - !input afternoon_schedule
+    to: "on"
+    id: block enable school
+    trigger: state
+  - entity_id:
+      - !input morning_schedule
+      - !input afternoon_schedule
+    to: "off"
+    id: block disable school
+    trigger: state
+  - trigger: time
+    at: "00:00:00"
+    id: midnight reset
+
+conditions: []
+
+variables:
+  primary_media_player: !input primary_media_player
+  secondary_media_player: !input secondary_media_player
+  tv_name: !input tv_name
+  tv_tag: "{{ tv_name | lower | replace(' ', '_') }}"
+  youtube_block_boolean: !input youtube_block_boolean
+  general_block_boolean: !input general_block_boolean
+  notification_enable_boolean: !input notification_enable_boolean
+  school_in_session_boolean: !input school_in_session_boolean
+  morning_schedule: !input morning_schedule
+  afternoon_schedule: !input afternoon_schedule
+  youtube_block_media_path: !input youtube_block_media_path
+  morning_media_path: !input morning_media_path
+  afternoon_media_path: !input afternoon_media_path
+  default_block_media_path: !input default_block_media_path
+  youtube_block_auto_enable_duration: !input youtube_block_auto_enable_duration
+
+trigger_variables:
+  tv_name: !input tv_name
+  tv_tag: "{{ tv_name | lower | replace(' ', '_') }}"
+
+actions:
+  - choose:
+      # Branch 0: Always-block YouTube if "bartolozzi" in media_artist or media_title (case-insensitive)
+      - conditions:
+          - condition: or
+            conditions:
+              - condition: trigger
+                id: playing
+              - condition: trigger
+                id: youtube block enabled
+          - condition: state
+            entity_id: !input primary_media_player
+            state: playing
+          - condition: or
+            conditions:
+              - condition: state
+                entity_id: !input primary_media_player
+                attribute: app_name
+                state: YouTube
+              - condition: state
+                entity_id: !input primary_media_player
+                attribute: app_name
+                state: YouTube Kids
+          - condition: template
+            value_template: >-
+              {{ 'bartolozzi' in (state_attr(primary_media_player, 'media_artist') | string | lower) or
+                 'bartolozzi' in (state_attr(primary_media_player, 'media_title') | string | lower) }}
+        sequence:
+          - data:
+              title: "📺 {{ tv_name }}"
+              message: |-
+                {% if is_state(primary_media_player, 'playing') %}
+                  {% if states[primary_media_player].attributes.media_title is defined %}
+                    Blocked {{ state_attr(primary_media_player, 'app_name') }}: {{ state_attr(primary_media_player, 'media_artist') }} - {{ state_attr(primary_media_player, 'media_title') }}
+                  {% elif states[primary_media_player].attributes.media_series_title is defined %}
+                    Blocked {{ state_attr(primary_media_player, 'app_name') }}: {{ state_attr(primary_media_player, 'media_series_title') }}
+                  {% else %}
+                    Blocked {{ state_attr(primary_media_player, 'app_name') }}
+                  {% endif %}
+                {% else %}
+                  {{ states(primary_media_player) | capitalize }}
+                {% endif %}
+              data:
+                tag: "{{ tv_tag }}"
+                notification_icon: mdi:youtube
+                ttl: 0
+                priority: high
+                actions:
+                  - action: "{{ tv_tag }}_youtube_allow"
+                    title: Disable YouTube Block
+            action: notify.mobile_app_all
+          - data:
+              media_content_id: "{{ youtube_block_media_path }}"
+              media_content_type: video
+            target:
+              entity_id: !input primary_media_player
+            action: media_player.play_media
+
+      # Branch 1: Primary player YouTube block
+      - conditions:
+          - condition: or
+            conditions:
+              - condition: trigger
+                id: playing
+              - condition: trigger
+                id: youtube block enabled
+          - condition: state
+            entity_id: !input primary_media_player
+            state: playing
+          - condition: or
+            conditions:
+              - condition: state
+                entity_id: !input primary_media_player
+                attribute: app_name
+                state: YouTube
+              - condition: state
+                entity_id: !input primary_media_player
+                attribute: app_name
+                state: YouTube Kids
+          - condition: state
+            entity_id: !input youtube_block_boolean
+            state: "on"
+        sequence:
+          - data:
+              title: "📺 {{ tv_name }}"
+              message: |-
+                {% if is_state(primary_media_player, 'playing') %}
+                  {% if states[primary_media_player].attributes.media_title is defined %}
+                    Blocked {{ state_attr(primary_media_player, 'app_name') }}: {{ state_attr(primary_media_player, 'media_artist') }} - {{ state_attr(primary_media_player, 'media_title') }}
+                  {% elif states[primary_media_player].attributes.media_series_title is defined %}
+                    Blocked {{ state_attr(primary_media_player, 'app_name') }}: {{ state_attr(primary_media_player, 'media_series_title') }}
+                  {% else %}
+                    Blocked {{ state_attr(primary_media_player, 'app_name') }}
+                  {% endif %}
+                {% else %}
+                  {{ states(primary_media_player) | capitalize }}
+                {% endif %}
+              data:
+                tag: "{{ tv_tag }}"
+                notification_icon: mdi:youtube
+                ttl: 0
+                priority: high
+                actions:
+                  - action: "{{ tv_tag }}_youtube_allow"
+                    title: Disable YouTube Block
+            action: notify.mobile_app_all
+          - data:
+              media_content_id: "{{ youtube_block_media_path }}"
+              media_content_type: video
+            target:
+              entity_id: !input primary_media_player
+            action: media_player.play_media
+
+      # Branch 2: Primary player general block
+      - conditions:
+          - condition: or
+            conditions:
+              - condition: trigger
+                id: playing
+              - condition: trigger
+                id: block enabled
+          - condition: state
+            entity_id: !input primary_media_player
+            state: playing
+          - condition: template
+            value_template: >-
+              {{ state_attr(primary_media_player, 'app_name') != 'Default Media Receiver' }}
+          - condition: state
+            entity_id: !input general_block_boolean
+            state: "on"
+          - condition: template
+            value_template: >-
+              {{ 'Kansas City Chiefs' not in (state_attr(primary_media_player, 'media_title') | string) and
+                 'Kansas City Royals' not in (state_attr(primary_media_player, 'media_title') | string) and
+                 state_attr(secondary_media_player, 'app_id') != 'com.bamnetworks.mobile.android.gameday.atbat' }}
+        sequence:
+          - data:
+              title: "📺 {{ tv_name }}"
+              message: |-
+                {% if is_state(primary_media_player, 'playing') %}
+                  {% if states[primary_media_player].attributes.media_title is defined %}
+                    Blocked {{ state_attr(primary_media_player, 'app_name') }}: {{ state_attr(primary_media_player, 'media_artist') }} - {{ state_attr(primary_media_player, 'media_title') }}
+                  {% elif states[primary_media_player].attributes.media_series_title is defined %}
+                    Blocked {{ state_attr(primary_media_player, 'app_name') }}: {{ state_attr(primary_media_player, 'media_series_title') }}
+                  {% else %}
+                    Blocked {{ state_attr(primary_media_player, 'app_name') }}
+                  {% endif %}
+                {% else %}
+                  {{ states(primary_media_player) | capitalize }}
+                {% endif %}
+              data:
+                tag: "{{ tv_tag }}"
+                notification_icon: mdi:television-classic-off
+                ttl: 0
+                priority: high
+                actions:
+                  - action: "{{ tv_tag }}_allow"
+                    title: Disable Block
+            action: notify.mobile_app_all
+          - choose:
+              - conditions:
+                  - condition: state
+                    entity_id: !input morning_schedule
+                    state: "on"
+                  - condition: state
+                    entity_id: !input school_in_session_boolean
+                    state: "on"
+                sequence:
+                  - data:
+                      media_content_id: "{{ morning_media_path }}"
+                      media_content_type: video
+                    target:
+                      entity_id: !input primary_media_player
+                    action: media_player.play_media
+              - conditions:
+                  - condition: state
+                    entity_id: !input afternoon_schedule
+                    state: "on"
+                  - condition: state
+                    entity_id: !input school_in_session_boolean
+                    state: "on"
+                sequence:
+                  - data:
+                      media_content_id: "{{ afternoon_media_path }}"
+                      media_content_type: video
+                    target:
+                      entity_id: !input primary_media_player
+                    action: media_player.play_media
+            default:
+              - data:
+                  media_content_id: "{{ default_block_media_path }}"
+                  media_content_type: video
+                target:
+                  entity_id: !input primary_media_player
+                action: media_player.play_media
+
+      - conditions:
+          - condition: or
+            conditions:
+              - condition: trigger
+                id: playing
+              - condition: trigger
+                id: not playing
+              - condition: and
+                conditions:
+                  - condition: trigger
+                    id: youtube block disabled
+                  - condition: state
+                    entity_id: !input primary_media_player
+                    state: playing
+          - condition: state
+            entity_id: !input youtube_block_boolean
+            state: "off"
+          - condition: template
+            value_template: >-
+              {{ state_attr(primary_media_player, 'app_name') != 'Default Media Receiver' }}
+          - condition: state
+            entity_id: !input notification_enable_boolean
+            state: "on"
+        sequence:
+          - data:
+              title: "📺 {{ tv_name }}"
+              message: |-
+                {% if is_state(primary_media_player, 'playing') %}
+                  {% if states[primary_media_player].attributes.media_title is defined %}
+                    Playing {{ state_attr(primary_media_player, 'app_name') }}: {{ state_attr(primary_media_player, 'media_artist') }} - {{ state_attr(primary_media_player, 'media_title') }}
+                  {% elif states[primary_media_player].attributes.media_series_title is defined %}
+                    Playing {{ state_attr(primary_media_player, 'app_name') }}: {{ state_attr(primary_media_player, 'media_series_title') }}
+                  {% else %}
+                    Playing {{ state_attr(primary_media_player, 'app_name') }}
+                  {% endif %}
+                {% else %}
+                  {{ states(primary_media_player) | capitalize }}
+                {% endif %}
+              data:
+                tag: "{{ tv_tag }}"
+                notification_icon: mdi:television-classic
+                ttl: 0
+                priority: high
+                actions:
+                  - action: "{{ tv_tag }}_youtube_block"
+                    title: Enable YouTube Block
+                  - action: "{{ tv_tag }}_notification_disable"
+                    title: Snooze
+            action: notify.mobile_app_all
+
+      - conditions:
+          - condition: trigger
+            id: youtube block enable
+        sequence:
+          - target:
+              entity_id: !input youtube_block_boolean
+            action: input_boolean.turn_on
+
+      - conditions:
+          - condition: trigger
+            id: youtube block disable
+        sequence:
+          - target:
+              entity_id: !input youtube_block_boolean
+            action: input_boolean.turn_off
+
+      - conditions:
+          - condition: trigger
+            id: notification disable
+        sequence:
+          - target:
+              entity_id: !input notification_enable_boolean
+            action: input_boolean.turn_off
+
+      - conditions:
+          - condition: trigger
+            id: youtube block enabled
+        sequence:
+          - target:
+              entity_id: !input notification_enable_boolean
+            action: input_boolean.turn_on
+          - data:
+              title: "📺 {{ tv_name }}"
+              message: YouTube block enabled.
+              data:
+                notification_icon: mdi:youtube
+                ttl: 0
+                priority: high
+                actions:
+                  - action: "{{ tv_tag }}_youtube_allow"
+                    title: Disable YouTube Block
+            enabled: false
+            action: notify.mobile_app_all
+
+      - conditions:
+          - condition: trigger
+            id: youtube block disabled
+        sequence:
+          - target:
+              entity_id: !input notification_enable_boolean
+            action: input_boolean.turn_on
+          - data:
+              title: "📺 {{ tv_name }}"
+              message: YouTube block disabled.
+              data:
+                notification_icon: mdi:youtube
+                ttl: 0
+                priority: high
+                actions:
+                  - action: "{{ tv_tag }}_youtube_block"
+                    title: Enable YouTube Block
+            enabled: false
+            action: notify.mobile_app_all
+
+      - conditions:
+          - condition: or
+            conditions:
+              - condition: trigger
+                id: block enable
+              - condition: and
+                conditions:
+                  - condition: trigger
+                    id: block enable school
+                  - condition: state
+                    entity_id: !input school_in_session_boolean
+                    state: "on"
+        sequence:
+          - target:
+              entity_id: !input general_block_boolean
+            action: input_boolean.turn_on
+
+      - conditions:
+          - condition: or
+            conditions:
+              - condition: trigger
+                id: block disable
+              - condition: and
+                conditions:
+                  - condition: trigger
+                    id: block disable school
+                  - condition: state
+                    entity_id: !input school_in_session_boolean
+                    state: "on"
+        sequence:
+          - target:
+              entity_id: !input general_block_boolean
+            action: input_boolean.turn_off
+
+      - conditions:
+          - condition: trigger
+            id: block enabled
+        sequence:
+          - data:
+              title: "📺 {{ tv_name }}"
+              message: Block enabled.
+              data:
+                notification_icon: mdi:television-classic-off
+                ttl: 0
+                priority: high
+                actions:
+                  - action: "{{ tv_tag }}_allow"
+                    title: Disable Block
+            enabled: false
+            action: notify.mobile_app_all
+
+      - conditions:
+          - condition: trigger
+            id: block disabled
+        sequence:
+          - data:
+              title: "📺 {{ tv_name }}"
+              message: Block disabled.
+              data:
+                notification_icon: mdi:television-classic
+                ttl: 0
+                priority: high
+                actions:
+                  - action: "{{ tv_tag }}_block"
+                    title: Enable Block
+            enabled: false
+            action: notify.mobile_app_all
+
+      # Branch 3a: Always-block secondary YouTube if "bartolozzi" in media_artist or media_title (case-insensitive)
+      - conditions:
+          - condition: or
+            conditions:
+              - condition: trigger
+                id: youtube 2
+              - condition: trigger
+                id: youtube block enabled 2
+        sequence:
+          - condition: template
+            value_template: >-
+              {{ state_attr(secondary_media_player, 'app_id') == 'com.google.android.youtube.tv' }}
+          - condition: template
+            value_template: >-
+              {{ state_attr(primary_media_player, 'app_name') != 'YouTube Music' }}
+          - condition: template
+            value_template: >-
+              {{ 'bartolozzi' in (state_attr(primary_media_player, 'media_artist') | string | lower) or
+                 'bartolozzi' in (state_attr(primary_media_player, 'media_title') | string | lower) }}
+          - data:
+              title: "📺 {{ tv_name }}"
+              message: |-
+                {% if is_state(primary_media_player, 'playing') %}
+                  {% if states[primary_media_player].attributes.media_title is defined %}
+                    Blocked {{ state_attr(primary_media_player, 'app_name') }}: {{ state_attr(primary_media_player, 'media_artist') }} - {{ state_attr(primary_media_player, 'media_title') }}
+                  {% elif states[primary_media_player].attributes.media_series_title is defined %}
+                    Blocked {{ state_attr(primary_media_player, 'app_name') }}: {{ state_attr(primary_media_player, 'media_series_title') }}
+                  {% else %}
+                    Blocked {{ state_attr(primary_media_player, 'app_name') }}
+                  {% endif %}
+                {% else %}
+                  Blocked {{ state_attr(secondary_media_player, 'friendly_name') }}
+                {% endif %}
+              data:
+                tag: "{{ tv_tag }}"
+                notification_icon: mdi:youtube
+                ttl: 0
+                priority: high
+                actions:
+                  - action: "{{ tv_tag }}_youtube_allow"
+                    title: Disable YouTube Block
+            action: notify.mobile_app_all
+          - action: media_player.turn_off
+            target:
+              entity_id: !input primary_media_player
+          - action: media_player.turn_off
+            target:
+              entity_id: !input secondary_media_player
+
+      # Branch 3: Secondary player YouTube block
+      - conditions:
+          - condition: or
+            conditions:
+              - condition: trigger
+                id: youtube 2
+              - condition: trigger
+                id: youtube block enabled 2
+        sequence:
+          - condition: template
+            value_template: >-
+              {{ state_attr(secondary_media_player, 'app_id') == 'com.google.android.youtube.tv' }}
+          - condition: state
+            entity_id: !input youtube_block_boolean
+            state: "on"
+          - condition: template
+            value_template: >-
+              {{ state_attr(primary_media_player, 'app_name') != 'YouTube Music' }}
+          - data:
+              title: "📺 {{ tv_name }}"
+              message: |-
+                {% if is_state(primary_media_player, 'playing') %}
+                  {% if states[primary_media_player].attributes.media_title is defined %}
+                    Blocked {{ state_attr(primary_media_player, 'app_name') }}: {{ state_attr(primary_media_player, 'media_artist') }} - {{ state_attr(primary_media_player, 'media_title') }}
+                  {% elif states[primary_media_player].attributes.media_series_title is defined %}
+                    Blocked {{ state_attr(primary_media_player, 'app_name') }}: {{ state_attr(primary_media_player, 'media_series_title') }}
+                  {% else %}
+                    Blocked {{ state_attr(primary_media_player, 'app_name') }}
+                  {% endif %}
+                {% else %}
+                  Blocked {{ state_attr(secondary_media_player, 'friendly_name') }}
+                {% endif %}
+              data:
+                tag: "{{ tv_tag }}"
+                notification_icon: mdi:youtube
+                ttl: 0
+                priority: high
+                actions:
+                  - action: "{{ tv_tag }}_youtube_allow"
+                    title: Disable YouTube Block
+            action: notify.mobile_app_all
+          - action: media_player.turn_off
+            target:
+              entity_id: !input primary_media_player
+          - action: media_player.turn_off
+            target:
+              entity_id: !input secondary_media_player
+
+      # Branch 4: Secondary player general block
+      - conditions:
+          - condition: or
+            conditions:
+              - condition: trigger
+                id: playing 2
+              - condition: trigger
+                id: block enabled 2
+        sequence:
+          - condition: template
+            value_template: "{{ state_attr(secondary_media_player, 'app_id') != None }}"
+          - condition: template
+            value_template: >-
+              {{ state_attr(secondary_media_player, 'app_id') != 'com.google.android.apps.mediashell' }}
+          - condition: template
+            value_template: >-
+              {{ state_attr(secondary_media_player, 'app_id') != 'com.google.android.apps.tv.launcherx' }}
+          - condition: state
+            entity_id: !input general_block_boolean
+            state: "on"
+          - condition: template
+            value_template: >-
+              {{ 'Kansas City Chiefs' not in (state_attr(primary_media_player, 'media_title') | string) and
+                 'Kansas City Royals' not in (state_attr(primary_media_player, 'media_title') | string) and
+                 state_attr(secondary_media_player, 'app_id') != 'com.bamnetworks.mobile.android.gameday.atbat' }}
+          - data:
+              title: "📺 {{ tv_name }}"
+              message: |-
+                {% if is_state(primary_media_player, 'playing') %}
+                  {% if states[primary_media_player].attributes.media_title is defined %}
+                    Blocked {{ state_attr(primary_media_player, 'app_name') }}: {{ state_attr(primary_media_player, 'media_artist') }} - {{ state_attr(primary_media_player, 'media_title') }}
+                  {% elif states[primary_media_player].attributes.media_series_title is defined %}
+                    Blocked {{ state_attr(primary_media_player, 'app_name') }}: {{ state_attr(primary_media_player, 'media_series_title') }}
+                  {% else %}
+                    Blocked {{ state_attr(primary_media_player, 'app_name') }}
+                  {% endif %}
+                {% else %}
+                  Blocked {{ state_attr(secondary_media_player, 'friendly_name') }}
+                {% endif %}
+              data:
+                tag: "{{ tv_tag }}"
+                notification_icon: mdi:television-classic-off
+                ttl: 0
+                priority: high
+                actions:
+                  - action: "{{ tv_tag }}_allow"
+                    title: Disable Block
+            action: notify.mobile_app_all
+          - action: media_player.turn_off
+            target:
+              entity_id: !input primary_media_player
+          - action: media_player.turn_off
+            target:
+              entity_id: !input secondary_media_player
+
+      - conditions:
+          - condition: trigger
+            id: midnight reset
+        sequence:
+          - target:
+              entity_id: !input general_block_boolean
+            action: input_boolean.turn_off
+          - target:
+              entity_id: !input youtube_block_boolean
+            action: input_boolean.turn_on
+          - target:
+              entity_id: !input notification_enable_boolean
+            action: input_boolean.turn_on
+
+  - if:
+      - condition: state
+        entity_id: !input youtube_block_boolean
+        state: "off"
+      - condition: template
+        value_template: >-
+          {{ (now() - states[youtube_block_boolean].last_changed).total_seconds() >= 
+             (youtube_block_auto_enable_duration.hours * 3600 + 
+              youtube_block_auto_enable_duration.minutes * 60 + 
+              youtube_block_auto_enable_duration.seconds) }}
+    then:
+      - target:
+          entity_id: !input youtube_block_boolean
+        action: input_boolean.turn_on
+
+mode: parallel
+max: 10
